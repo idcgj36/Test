@@ -1,0 +1,163 @@
+-- Advanced TechUI Library
+local TechUI = {}
+TechUI.__index = TechUI
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Tạo ScreenGui
+function TechUI.new(name)
+    local self = setmetatable({}, TechUI)
+    self.Gui = Instance.new("ScreenGui")
+    self.Gui.Name = name or "TechUI"
+    self.Gui.Parent = PlayerGui
+    self.Panels = {}
+    return self
+end
+
+-- Tween helper
+local function tweenProperty(inst, props, time)
+    local info = TweenInfo.new(time or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(inst, info, props)
+    tween:Play()
+    return tween
+end
+
+-- Add UiCorner helper
+local function addCorner(inst, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.Parent = inst
+end
+
+-- Panel + Drag
+function TechUI:AddPanel(title, size, position)
+    local panel = Instance.new("Frame")
+    panel.Name = title or "Panel"
+    panel.Size = size or UDim2.new(0, 300, 0, 400)
+    panel.Position = position or UDim2.new(0.5, -150, 0.5, -200)
+    panel.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    panel.BorderSizePixel = 0
+    panel.Parent = self.Gui
+    addCorner(panel, 12)
+
+    -- Drag
+    local dragging, dragInput, dragStart, startPos
+    panel.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = panel.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    panel.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    self.Panels[title] = panel
+    return panel
+end
+
+-- Button
+function TechUI:AddButton(panel, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 200, 0, 50)
+    btn.Position = UDim2.new(0.5, -100, 0, #panel:GetChildren()*55)
+    btn.Text = text or "Button"
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Parent = panel
+    addCorner(btn, 8)
+
+    -- Tween hover
+    btn.MouseEnter:Connect(function()
+        tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(80,80,80)})
+    end)
+    btn.MouseLeave:Connect(function()
+        tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(60,60,60)})
+    end)
+    btn.MouseButton1Click:Connect(function()
+        tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(100,100,100)}, 0.1)
+        wait(0.1)
+        tweenProperty(btn, {BackgroundColor3 = Color3.fromRGB(60,60,60)}, 0.2)
+        if callback then callback() end
+    end)
+    return btn
+end
+
+-- Toggle
+function TechUI:AddToggle(panel, text, default, callback)
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 200, 0, 50)
+    toggle.Position = UDim2.new(0.5, -100, 0, #panel:GetChildren()*55)
+    toggle.Text = text.." : "..(default and "ON" or "OFF")
+    toggle.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    toggle.TextColor3 = Color3.fromRGB(255,255,255)
+    toggle.Parent = panel
+    addCorner(toggle, 8)
+    local state = default or false
+
+    toggle.MouseButton1Click:Connect(function()
+        state = not state
+        toggle.Text = text.." : "..(state and "ON" or "OFF")
+        tweenProperty(toggle, {BackgroundColor3 = state and Color3.fromRGB(50,150,50) or Color3.fromRGB(60,60,60)}, 0.2)
+        if callback then callback(state) end
+    end)
+    return toggle
+end
+
+-- TextBox
+function TechUI:AddTextBox(panel, placeholder, callback)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0, 200, 0, 50)
+    box.Position = UDim2.new(0.5, -100, 0, #panel:GetChildren()*55)
+    box.Text = ""
+    box.PlaceholderText = placeholder or "Enter text..."
+    box.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    box.TextColor3 = Color3.fromRGB(255,255,255)
+    box.ClearTextOnFocus = false
+    box.Parent = panel
+    addCorner(box, 8)
+
+    box.Focused:Connect(function()
+        tweenProperty(box, {BackgroundColor3 = Color3.fromRGB(80,80,80)}, 0.2)
+    end)
+    box.FocusLost:Connect(function(enterPressed)
+        tweenProperty(box, {BackgroundColor3 = Color3.fromRGB(60,60,60)}, 0.2)
+        if enterPressed and callback then
+            callback(box.Text)
+        end
+    end)
+    return box
+end
+
+-- TextLabel / Line
+function TechUI:AddLabel(panel, text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0, 200, 0, 30)
+    lbl.Position = UDim2.new(0.5, -100, 0, #panel:GetChildren()*55)
+    lbl.Text = text or "Label"
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(255,255,255)
+    lbl.Parent = panel
+    return lbl
+end
+
+return TechUI
