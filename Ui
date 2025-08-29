@@ -1,0 +1,123 @@
+local UILibrary = {}
+
+function UILibrary:CreateWindow(title)
+    local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    local Frame = Instance.new("Frame", ScreenGui)
+    Frame.Size = UDim2.new(0.4, 0, 0.5, 0)
+    Frame.Position = UDim2.new(0.3, 0, 0.2, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(34,34,34)
+    Frame.BorderSizePixel = 0
+    
+    local UICorner = Instance.new("UICorner", Frame)
+    UICorner.CornerRadius = UDim.new(0, 5)
+
+    local Title = Instance.new("TextLabel", Frame)
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.BackgroundTransparency = 1
+    Title.Text = title or "UI Library"
+    Title.TextColor3 = Color3.fromRGB(255,255,255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 18
+
+    local Content = Instance.new("ScrollingFrame", Frame)
+    Content.Size = UDim2.new(1, -10, 1, -40)
+    Content.Position = UDim2.new(0, 5, 0, 35)
+    Content.CanvasSize = UDim2.new(0,0,0,0)
+    Content.BackgroundTransparency = 1
+    Content.ScrollBarThickness = 4
+
+    local UIListLayout = Instance.new("UIListLayout", Content)
+    UIListLayout.Padding = UDim.new(0,5)
+
+    local Window = {}
+    Window.Content = Content
+
+    function Window:CreateButton(text, callback)
+        local Button = Instance.new("TextButton", Content)
+        Button.Size = UDim2.new(1, -10, 0, 30)
+        Button.BackgroundColor3 = Color3.fromRGB(53,53,53)
+        Button.TextColor3 = Color3.fromRGB(255,255,255)
+        Button.Text = text
+        Button.Font = Enum.Font.Gotham
+        Button.TextSize = 14
+        Instance.new("UICorner", Button).CornerRadius = UDim.new(0,5)
+
+        Button.MouseButton1Click:Connect(function()
+            if callback then callback() end
+        end)
+
+        return Button
+    end
+
+    function Window:CreateTextbox(placeholder, callback)
+        local TextBox = Instance.new("TextBox", Content)
+        TextBox.Size = UDim2.new(1, -10, 0, 30)
+        TextBox.BackgroundColor3 = Color3.fromRGB(53,53,53)
+        TextBox.TextColor3 = Color3.fromRGB(255,255,255)
+        TextBox.PlaceholderText = placeholder
+        TextBox.Font = Enum.Font.Gotham
+        TextBox.TextSize = 14
+        Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0,5)
+
+        TextBox.FocusLost:Connect(function()
+            if callback then callback(TextBox.Text) end
+        end)
+
+        return TextBox
+    end
+
+    function Window:CreateSlider(name, min, max, default, callback)
+        local Holder = Instance.new("Frame", Content)
+        Holder.Size = UDim2.new(1, -10, 0, 40)
+        Holder.BackgroundTransparency = 1
+
+        local Label = Instance.new("TextLabel", Holder)
+        Label.Size = UDim2.new(1,0,0,15)
+        Label.BackgroundTransparency = 1
+        Label.Text = name .. ": " .. default
+        Label.TextColor3 = Color3.fromRGB(255,255,255)
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 13
+
+        local Bar = Instance.new("Frame", Holder)
+        Bar.Size = UDim2.new(1, -20, 0, 3)
+        Bar.Position = UDim2.new(0, 10, 0, 25)
+        Bar.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        Bar.BorderSizePixel = 0
+        Instance.new("UICorner", Bar).CornerRadius = UDim.new(0,3)
+
+        local Knob = Instance.new("TextButton", Bar)
+        Knob.Size = UDim2.new(0, 10, 0, 10)
+        Knob.Position = UDim2.new((default-min)/(max-min), -5, 0.5, -5)
+        Knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        Knob.Text = ""
+        Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
+
+        local Value = default
+        Knob.MouseButton1Down:Connect(function()
+            local MoveConn
+            local ReleaseConn
+            MoveConn = game:GetService("UserInputService").InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement then
+                    local percent = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                    Value = math.floor(min + (max-min)*percent)
+                    Knob.Position = UDim2.new(percent, -5, 0.5, -5)
+                    Label.Text = name .. ": " .. Value
+                    if callback then callback(Value) end
+                end
+            end)
+            ReleaseConn = game:GetService("UserInputService").InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    MoveConn:Disconnect()
+                    ReleaseConn:Disconnect()
+                end
+            end)
+        end)
+    end
+
+    return Window
+end
+
+return UILibrary
